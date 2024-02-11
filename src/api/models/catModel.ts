@@ -25,12 +25,13 @@ const CatSchema = new mongoose.Schema<Cat>({
         type: {
             type: String,
             enum: ['Point'],
-            required: false,
+            required: true,
         },
         coordinates: {
             type: [Number],
             required: true,
-        }
+        },
+
     },
     owner: {
         _id: {

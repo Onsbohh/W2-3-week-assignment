@@ -9,11 +9,10 @@
 // - catListGet - get all cats
 // - catPost - create new cat
 import { Request, Response, NextFunction } from "express";
-import { Cat, LoginUser, User } from "../../types/DBTypes";
+import { Cat } from "../../types/DBTypes";
 import CatModel from "../models/catModel";
 import { MessageResponse } from "../../types/MessageTypes";
-import rectangleBounds from "../../utils/rectangleBounds";
-import exp from "constants";
+import { getCoordinates } from "../../middlewares";
 
 // - catGetByUser - get all cats by current user id
 const catGetByUser = async (
@@ -143,7 +142,7 @@ const catDeleteAdmin = async (
 // - catDelete - only owner can delete cat
 const catDelete = async (
     req: Request<{id:String}>,
-    res: Response<MessageResponse>,
+    res: Response,
     next: NextFunction
 ) => {
     if (!res.locals.user) {
@@ -162,8 +161,20 @@ const catDelete = async (
         return;
     }
     try {
+        const catInput = {
+            _id: req.params.id,
+            cat_name: cat.cat_name,
+            weight: cat.weight,
+            birthdate: cat.birthdate,
+            owner: res.locals.user,
+            filename: cat.filename,
+            location: cat.location,
+        }
+
+        console.log(catInput);
+
         await CatModel.findByIdAndDelete(req.params.id);
-        res.json({message: "Cat Deleted"});
+        res.json({message: "Cat Deleted", data: catInput});
     } catch (error) {
         next(error);
     }
@@ -172,7 +183,7 @@ const catDelete = async (
 // - catPut - only owner can update cat
 const catPut = async (
     req: Request<{id:String}, {}, Omit<Cat, "_id">>,
-    res: Response<MessageResponse>,
+    res: Response,
     next: NextFunction
 ) => {
     if (!res.locals.user) {
@@ -181,6 +192,7 @@ const catPut = async (
     }
 
     const cat = await CatModel.findById(req.params.id);
+    console.log("Old:", cat);
         if (!cat) {
             res.status(404);
             console.log("Cat not found");
@@ -191,8 +203,10 @@ const catPut = async (
             return;
         }
         try {
-            await CatModel.findByIdAndUpdate(req.params.id, req.body, {new: true});
-            res.json({message: "Cat updated"});
+            const cat = await CatModel.findByIdAndUpdate(req.params.id, req.body, {new: true});
+            console.log("New:", cat);
+
+            res.json({message: "Cat updated", data: cat});
         } catch (error) {
             next(error);
         }
@@ -258,10 +272,20 @@ const catPost = async (
             return;
         }
 
-        const catInput = req.body;
-        catInput.owner = res.locals.user;
+        const catInput = {
+            cat_name: req.body.cat_name,
+            weight: req.body.weight,
+            birthdate: req.body.birthdate,
+            owner: res.locals.user,
+            filename: req.file ? req.file.filename : "",
+            location:  res.locals.coords||{
+                type: "Point",
+                coordinates: [0, 0],
+            },
+        }
 
         const cat = await CatModel.create(catInput);
+        console.log(cat);
 
         res.json({message: "Cat created", data: cat});
     } catch (error) {
