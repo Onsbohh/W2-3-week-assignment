@@ -18,22 +18,42 @@ import exp from "constants";
 // - catGetByUser - get all cats by current user id
 const catGetByUser = async (
     req: Request,
-    res: Response<Cat[]>,
+    res: Response,
     next: NextFunction
 ) => { 
     try {
+        if (!res.locals.user) {
+            res.status(401).json({ message: 'Not authenticated' });
+            return;
+        }
         const cats = await CatModel.find({ "owner._id": res.locals.user._id })
         .select("-__v")
         .populate({
             path: "owner",
             select: "-password -role -__v",
         });
+
+        const catsOutput = cats.map((cat) => {
+            return {
+                _id: cat._id,
+                cat_name: cat.cat_name,
+                weight: cat.weight,
+                filename: cat.filename,
+                birthdate: cat.birthdate,
+                location: {
+                    type: cat.location.type,
+                    coordinates: cat.location.coordinates,
+                },
+                owner: res.locals.user,
+            };
+        });
+
         if (!cats) {
             res.status(404);
             console.log("No cats found!");
             return;
         }
-        res.json(cats);        
+        res.json(catsOutput);        
     } catch(error) {
         next(error);
     }
@@ -71,11 +91,29 @@ const catPutAdmin = async (
 
 // - catGetByBoundingBox - get all cats by bounding box coordinates (getJSON)
 const catGetByBoundingBox = async (
-    req: Request,
+    req: Request<{}, {}, {}, {topRight: string; bottomLeft: string}>,
     res: Response<Cat[]>,
     next: NextFunction
 ) => {
+    try {
+        const topRight = req.query.topRight.split(',');
+        const bottomLeft = req.query.bottomLeft.split(',');
 
+        const cats = await CatModel.find({
+            location: {
+              $geoWithin: {
+                $box: [
+                  [Number(bottomLeft[0]), Number(bottomLeft[1])],
+                  [Number(topRight[0]), Number(topRight[1])],
+                ],
+              },
+            },
+          });
+        
+        res.json(cats);
+    } catch (error) {
+        next(error);
+    }
 };
 
 // - catDeleteAdmin - only admin can delete cat
@@ -108,6 +146,11 @@ const catDelete = async (
     res: Response<MessageResponse>,
     next: NextFunction
 ) => {
+    if (!res.locals.user) {
+        res.status(401).json({ message: 'Not authenticated' });
+        return;
+    }
+
     const cat = await CatModel.findById(req.params.id);
     if (!cat) {
         res.status(404);
@@ -132,6 +175,11 @@ const catPut = async (
     res: Response<MessageResponse>,
     next: NextFunction
 ) => {
+    if (!res.locals.user) {
+        res.status(401).json({ message: 'Not authenticated' });
+        return;
+    }
+
     const cat = await CatModel.findById(req.params.id);
         if (!cat) {
             res.status(404);
@@ -205,14 +253,13 @@ const catPost = async (
     next: NextFunction
 ) => {
     try {
-        const catInput = {
-            cat_name: req.body.cat_name,
-            weight: req.body.weight,
-            filename: req.body.filename,
-            birthdate: req.body.birthdate,
-            location: req.body.location,
-            owner: req.body.owner,
-        };
+        if (!res.locals.user) {
+            res.status(401).json({ message: 'Not authenticated' });
+            return;
+        }
+
+        const catInput = req.body;
+        catInput.owner = res.locals.user;
 
         const cat = await CatModel.create(catInput);
 

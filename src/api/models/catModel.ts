@@ -14,7 +14,7 @@ const CatSchema = new mongoose.Schema<Cat>({
     },
     filename: {
         type: String,
-        required: true,
+        required: false,
     },
     birthdate: {
         type: Date,
@@ -25,7 +25,7 @@ const CatSchema = new mongoose.Schema<Cat>({
         type: {
             type: String,
             enum: ['Point'],
-            required: true,
+            required: false,
         },
         coordinates: {
             type: [Number],

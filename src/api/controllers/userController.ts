@@ -126,7 +126,7 @@ const userPutCurrent = async (
 // - userDeleteCurrent - delete current user
 const userDeleteCurrent = async (   
     req: Request,
-    res: Response<MessageResponse>,
+    res: Response,
     next: NextFunction
 ) => {
     try {
@@ -136,8 +136,16 @@ const userDeleteCurrent = async (
             console.log("User not found");
             return;
         }
+
+        const userOutput: UserOutput = {
+            _id: user._id,
+            user_name: user.user_name,
+            email: user.email,
+        };
+
         await UserModel.findByIdAndDelete(res.locals.user._id);
-        res.json({message: "User deleted!"});
+
+        res.json({message: "User deleted!", data: userOutput});
     } catch (error) {
         next(error);
     }
