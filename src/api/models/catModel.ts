@@ -47,3 +47,7 @@ const CatSchema = new mongoose.Schema<Cat>({
         }
     }
 });
+
+const CatModel = mongoose.model<Cat>("Cat", CatSchema);
+
+export default CatModel;
